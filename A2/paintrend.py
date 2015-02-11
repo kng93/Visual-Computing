@@ -13,6 +13,7 @@ import time
 import matplotlib.image as mpimg
 import scipy as sci
 import scipy.misc
+import random
 
 np.set_printoptions(threshold = np.nan)  
 
@@ -152,11 +153,16 @@ if __name__ == "__main__":
        
     time.time()
     time.clock()
-    for k in range(500):
-        # finding a negative pixel
-        # Randomly select stroke center
-        cntr = np.floor(np.random.rand(2,1).flatten() * np.array([sizeIm[1], sizeIm[0]])) + 1
+    
+    idx = 0;
+    negative_pixels = np.where(canvas == -1)
+    # While there is at least one negative pixel, loop
+    while len(negative_pixels[0]):
+        # Finding a random negative pixel
+        cntr = np.floor(random.random()*len(negative_pixels[0]))
+        cntr = np.array([negative_pixels[1][cntr], negative_pixels[0][cntr]])
         cntr = np.amin(np.vstack((cntr, np.array([sizeIm[1], sizeIm[0]]))), axis=0)
+ 
         # Grab colour from image at center position of the stroke.
         colour = np.reshape(imRGB[cntr[1]-1, cntr[0]-1, :],(3,1))
         # Add the stroke to the canvas
@@ -164,7 +170,10 @@ if __name__ == "__main__":
         length1, length2 = (halfLen, halfLen)        
         canvas = paintStroke(canvas, x, y, cntr - delta * length2, cntr + delta * length1, colour, rad)
         #print imRGB[cntr[1]-1, cntr[0]-1, :], canvas[cntr[1]-1, cntr[0]-1, :]
-        print 'stroke', k
+        print 'stroke', idx
+        
+        negative_pixels = np.where(canvas == -1)
+        idx += 1;
         
     print "done!"
     time.time()
