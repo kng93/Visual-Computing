@@ -25,6 +25,7 @@ def convert_monochrome(img):
     
     return monochrome
 
+# Get the matrix of theta values corresponding to the gradient
 def get_theta(mono_img):
     imin = mono_img.copy() * 255.0
     wsize = 5
@@ -38,7 +39,6 @@ def get_theta(mono_img):
                             0, 0, 0])
 
     imout = conv(imin, gausskernel, 'valid')
-    # print "imout:", imout.shape
     gradxx = conv(imout, fx, 'valid')
     gradyy = conv(imout, fy, 'valid')
 
@@ -254,11 +254,7 @@ if __name__ == "__main__":
     # Random number seed
     np.random.seed(29645)
     
-    # TODO: Change these comments to the correct places (since I changed)
-    # Orientation of paint brush strokes
-    #theta = 2 * pi * np.random.rand(1,1)[0][0]
-    # Set vector from center to one end of the stroke.
-    #delta = np.array([cos(theta), sin(theta)])
+    # Set the default vector from center to one end of the stroke.
     default_theta = 2 * pi * np.random.rand(1,1)[0][0]
     
     time.time()
@@ -287,7 +283,7 @@ if __name__ == "__main__":
         else:
             length1, length2 = (halfLen, halfLen)      
         
-        # Orientation of paint brush strokes
+        # Orientation of paint brush strokes; if theta = 0, set to default
         if theta_im[cntr[1]-1, cntr[0]-1] > 0:
             theta = theta_im[cntr[1]-1, cntr[0]-1]+(pi/2)
         else:
