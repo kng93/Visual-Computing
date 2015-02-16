@@ -224,6 +224,35 @@ def getEndpoints(c, delta, len1, len2, canny_im):
 
     return p0, p1
 
+# Add random perturbation to colour and intensity
+def random_colour(colour):
+    ran_inten = np.random.uniform(0.85, 1.15)
+    r, g, b = colour[0][0], colour[1][0], colour[2][0]
+    
+    # Modify the colour
+    for col in colour:
+        ran_col = (np.random.uniform(-15,15))/255.0
+        col[0] = (col[0] + ran_col)*ran_inten
+        
+        # Make sure it doesn't go off the colour scale
+        if col[0] > 1:
+            col[0] = 1
+        elif col[0] < 0:
+            col[0] = 0
+    
+    return colour
+
+# Add random perturbation to theta
+def random_theta(theta):
+    ran_theta = np.random.uniform(-15, 15)
+
+    theta = theta + ran_theta
+    # Make sure it doesn't get below 0 (max can get up to is 135+15=150)
+    if theta < 0:
+        theta = 180+theta
+    
+    return theta
+
 
 if __name__ == "__main__":
     # Read image and convert it to double, and scale each R,G,B
@@ -272,6 +301,7 @@ if __name__ == "__main__":
  
         # Grab colour from image at center position of the stroke.
         colour = np.reshape(imRGB[cntr[1]-1, cntr[0]-1, :],(3,1))
+        colour = random_colour(colour)
         # Add the stroke to the canvas
         nx, ny = (sizeIm[1], sizeIm[0])
         
@@ -288,6 +318,7 @@ if __name__ == "__main__":
             theta = theta_im[cntr[1]-1, cntr[0]-1]+(pi/2)
         else:
             theta = default_theta
+        theta = random_theta(theta)
         
         # Set vector from center to one end of the stroke.
         delta = np.array([cos(theta), sin(theta)])
@@ -301,10 +332,6 @@ if __name__ == "__main__":
         negative_pixels = np.where(canvas == -1)
         idx += 1;
         
-        # TODO: FIX For when I break things.... 
-        if idx == 5000:
-            break
-        
     print "done!"
     print default_theta
     time.time()
@@ -315,5 +342,3 @@ if __name__ == "__main__":
     plt.imshow(canvas)
     plt.pause(3)
     colorImSave('output.png', canvas)
-
-    colorImSave('test.png', canny_im)
