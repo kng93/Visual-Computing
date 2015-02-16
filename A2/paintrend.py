@@ -13,6 +13,7 @@ import time
 import matplotlib.image as mpimg
 import scipy as sci
 import scipy.misc
+from scipy.signal import convolve2d as conv
 import canny as can
 
 np.set_printoptions(threshold = np.nan)  
@@ -24,11 +25,60 @@ def convert_monochrome(img):
     
     return monochrome
 
-def orient_stroke(img):
-    monochrome = convert_monochrome(img)
-    
+def get_theta(mono_img):
+    imin = mono_img.copy() * 255.0
     wsize = 5
     gausskernel = can.gaussFilter(4, window = wsize)
+    
+    fx = can.createFilter([0,  1, 0,
+                            0,  0, 0,
+                            0, -1, 0])
+    fy = can.createFilter([ 0, 0, 0,
+                            1, 0, -1,
+                            0, 0, 0])
+
+    imout = conv(imin, gausskernel, 'valid')
+    # print "imout:", imout.shape
+    gradxx = conv(imout, fx, 'valid')
+    gradyy = conv(imout, fy, 'valid')
+
+    gradx = np.zeros(mono_img.shape)
+    grady = np.zeros(mono_img.shape)
+    padx = (imin.shape[0] - gradxx.shape[0]) / 2.0
+    pady = (imin.shape[1] - gradxx.shape[1]) / 2.0
+    gradx[padx:-padx, pady:-pady] = gradxx
+    grady[padx:-padx, pady:-pady] = gradyy
+    
+    # Net gradient is the square root of sum of square of the horizontal
+    # and vertical gradients
+
+    grad = hypot(gradx, grady)
+    theta = arctan2(grady, gradx)
+    theta = 180 + (180 / pi) * theta
+    # Only significant magnitudes are considered. All others are removed
+    xx, yy = where(grad < 5)
+    theta[xx, yy] = 0
+    grad[xx, yy] = 0
+    
+    colorImSave('theta.png', theta)
+    # The angles are quantized. This is the first step in non-maximum
+    # supression. Since, any pixel will have only 4 approach directions.
+    x0,y0 = where(((theta<22.5)+(theta>157.5)*(theta<202.5)
+                   +(theta>337.5)) == True)
+    x45,y45 = where( ((theta>22.5)*(theta<67.5)
+                      +(theta>202.5)*(theta<247.5)) == True)
+    x90,y90 = where( ((theta>67.5)*(theta<112.5)
+                      +(theta>247.5)*(theta<292.5)) == True)
+    x135,y135 = where( ((theta>112.5)*(theta<157.5)
+                        +(theta>292.5)*(theta<337.5)) == True)
+
+    theta = theta
+    theta[x0,y0] = 0
+    theta[x45,y45] = 45
+    theta[x90,y90] = 90
+    theta[x135,y135] = 135
+    
+    return theta
 
 def colorImSave(filename, array):
     imArray = scipy.misc.imresize(array, 3., 'nearest')
@@ -183,6 +233,7 @@ if __name__ == "__main__":
     # Get monochrome image
     mono_im = convert_monochrome(imRGB)
     canny_im = can.canny(mono_im, 2.0, 7500, 2000)
+    theta_im = get_theta(mono_im)
     
     imRGB = double(imRGB) / 255.0
     plt.clf()
@@ -191,8 +242,8 @@ if __name__ == "__main__":
     sizeIm = imRGB.shape
     sizeIm = sizeIm[0:2]
     # Set radius of paint brush and half length of drawn lines
-    rad = 1
-    halfLen = 10
+    rad = 3
+    halfLen = 5
     
     # Set up x, y coordinate images, and canvas.
     [x, y] = np.meshgrid(np.array([i+1 for i in range(int(sizeIm[1]))]), np.array([i+1 for i in range(int(sizeIm[0]))]))
@@ -203,12 +254,13 @@ if __name__ == "__main__":
     # Random number seed
     np.random.seed(29645)
     
+    # TODO: Change these comments to the correct places (since I changed)
     # Orientation of paint brush strokes
-    theta = 2 * pi * np.random.rand(1,1)[0][0]
+    #theta = 2 * pi * np.random.rand(1,1)[0][0]
     # Set vector from center to one end of the stroke.
-    delta = np.array([cos(theta), sin(theta)])
-    print delta
-       
+    #delta = np.array([cos(theta), sin(theta)])
+    default_theta = 2 * pi * np.random.rand(1,1)[0][0]
+    
     time.time()
     time.clock()
     
@@ -235,6 +287,15 @@ if __name__ == "__main__":
         else:
             length1, length2 = (halfLen, halfLen)      
         
+        # Orientation of paint brush strokes
+        if theta_im[cntr[1]-1, cntr[0]-1] > 0:
+            theta = theta_im[cntr[1]-1, cntr[0]-1]+(pi/2)
+        else:
+            theta = default_theta
+        
+        # Set vector from center to one end of the stroke.
+        delta = np.array([cos(theta), sin(theta)])
+        
         # Get the endpoints
         p0, p1 = getEndpoints(cntr, delta, length1, length2, canny_im)
         canvas = paintStroke(canvas, x, y, p0, p1, colour, rad)
@@ -244,7 +305,12 @@ if __name__ == "__main__":
         negative_pixels = np.where(canvas == -1)
         idx += 1;
         
+        # TODO: FIX For when I break things.... 
+        if idx == 5000:
+            break
+        
     print "done!"
+    print default_theta
     time.time()
     
     canvas[canvas < 0] = 0.0
