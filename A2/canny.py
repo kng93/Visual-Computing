@@ -15,6 +15,7 @@ import os
 from scipy import *
 from scipy.ndimage import *
 from scipy.signal import convolve2d as conv
+import numpy as np
 
 def canny(im, sigma, thresHigh = 50,thresLow = 10):
     '''

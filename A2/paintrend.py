@@ -13,9 +13,22 @@ import time
 import matplotlib.image as mpimg
 import scipy as sci
 import scipy.misc
-import random
+import canny as can
 
 np.set_printoptions(threshold = np.nan)  
+
+# Convert image to monochrome using Litwinowicz's suggested intensity
+def convert_monochrome(img):
+    r, g, b = img[:,:,0], img[:,:,1], img[:,:,2]
+    monochrome = 0.30*r + 0.59*g + 0.11*b
+    
+    return monochrome
+
+def orient_stroke(img):
+    monochrome = convert_monochrome(img)
+    
+    wsize = 5
+    gausskernel = can.gaussFilter(4, window = wsize)
 
 def colorImSave(filename, array):
     imArray = scipy.misc.imresize(array, 3., 'nearest')
@@ -122,11 +135,55 @@ def paintStroke(canvas, x, y, p0, p1, colour, rad):
         canvas = np.reshape(canvas, sizeIm + (3,), "F")
     return canvas
 
+# Get the endpoints after accounting for edgels
+def getEndpoints(c, delta, len1, len2, canny_im):
+    p0, p1 = (c - delta * len2, c + delta * len1)
+    t = delta
+    csize = canny_im.shape
+    
+    if t[0] == 0 or t[1] == 0:
+        return p0, p1
+    # Pixels moving horizontally
+    elif abs(t[0]) >= abs(t[1]):
+        s = [coord / t[0] for coord in t]
+    # Pixels moving vertically
+    else:
+        s = [coord / t[1] for coord in t]
+    
+    # Going one direction...
+    x = c
+    k = 0
+    while norm(x-c) <= len1:
+        k += 1
+        x = c + [round(k*s[0]), round(k*s[1])]
+        if csize[0] <= x[1] or csize[1] <= x[0] or \
+        canny_im[x[1]-1, x[0]-1]:
+            p0 = x
+            break
+    
+    # Going the other direction...
+    x = c
+    k = 0
+    while norm(x-c) <= len2:
+        k += 1
+        x = c - [round(k*s[0]), round(k*s[1])]
+        if csize[0] <= x[1] or csize[1] <= x[0] or \
+        canny_im[x[1]-1, x[0]-1]:
+            p1 = x
+            break
+
+    return p0, p1
+
 
 if __name__ == "__main__":
     # Read image and convert it to double, and scale each R,G,B
     # channel to range [0,1].
     imRGB = array(Image.open('orchid.jpg'))
+    
+    # Get monochrome image
+    mono_im = convert_monochrome(imRGB)
+    canny_im = can.canny(mono_im, 2.0, 7500, 2000)
+    
     imRGB = double(imRGB) / 255.0
     plt.clf()
     plt.axis('off')
@@ -134,7 +191,7 @@ if __name__ == "__main__":
     sizeIm = imRGB.shape
     sizeIm = sizeIm[0:2]
     # Set radius of paint brush and half length of drawn lines
-    rad = 3
+    rad = 1
     halfLen = 10
     
     # Set up x, y coordinate images, and canvas.
@@ -150,6 +207,7 @@ if __name__ == "__main__":
     theta = 2 * pi * np.random.rand(1,1)[0][0]
     # Set vector from center to one end of the stroke.
     delta = np.array([cos(theta), sin(theta)])
+    print delta
        
     time.time()
     time.clock()
@@ -159,16 +217,27 @@ if __name__ == "__main__":
     # While there is at least one negative pixel, loop
     while len(negative_pixels[0]):
         # Finding a random negative pixel
-        cntr = np.floor(random.random()*len(negative_pixels[0]))
+        cntr = np.floor(np.random.rand(1,1)[0][0]*len(negative_pixels[0]))
         cntr = np.array([negative_pixels[1][cntr], negative_pixels[0][cntr]])
         cntr = np.amin(np.vstack((cntr, np.array([sizeIm[1], sizeIm[0]]))), axis=0)
+        cntr = np.array([cntr[0]+1, cntr[1]+1])
  
         # Grab colour from image at center position of the stroke.
         colour = np.reshape(imRGB[cntr[1]-1, cntr[0]-1, :],(3,1))
         # Add the stroke to the canvas
         nx, ny = (sizeIm[1], sizeIm[0])
-        length1, length2 = (halfLen, halfLen)        
-        canvas = paintStroke(canvas, x, y, cntr - delta * length2, cntr + delta * length1, colour, rad)
+        
+        # Check if center is on an edgel or at the edge; if so, length = 0
+        csize = canny_im.shape
+        if csize[0] <= cntr[1]-1 or csize[1] <= cntr[0]-1 or \
+        canny_im[cntr[1]-1, cntr[0]-1]:
+            length1, length2 = (0, 0)
+        else:
+            length1, length2 = (halfLen, halfLen)      
+        
+        # Get the endpoints
+        p0, p1 = getEndpoints(cntr, delta, length1, length2, canny_im)
+        canvas = paintStroke(canvas, x, y, p0, p1, colour, rad)
         #print imRGB[cntr[1]-1, cntr[0]-1, :], canvas[cntr[1]-1, cntr[0]-1, :]
         print 'stroke', idx
         
@@ -184,3 +253,5 @@ if __name__ == "__main__":
     plt.imshow(canvas)
     plt.pause(3)
     colorImSave('output.png', canvas)
+
+    colorImSave('test.png', canny_im)
