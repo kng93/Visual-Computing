@@ -19,11 +19,11 @@ import canny as can
 np.set_printoptions(threshold = np.nan)  
 
 def colorImSave(filename, array):
-    imArray = scipy.misc.imresize(array, 3., 'nearest')
+    imArray = sci.misc.imresize(array, 3., 'nearest')
     if (len(imArray.shape) == 2):
-        scipy.misc.imsave(filename, cm.jet(imArray))
+        sci.misc.imsave(filename, cm.jet(imArray))
     else:
-        scipy.misc.imsave(filename, imArray)
+        sci.misc.imsave(filename, imArray)
 
 def markStroke(mrkd, p0, p1, rad, val):
     # Mark the pixels that will be painted by
@@ -270,71 +270,103 @@ if __name__ == "__main__":
     sizeIm = sizeIm[0:2]
     # Set radius of paint brush and half length of drawn lines
     rad = 3
-    halfLen = 5
+    halfLen = 10
     
-    # Set up x, y coordinate images, and canvas.
-    [x, y] = np.meshgrid(np.array([i+1 for i in range(int(sizeIm[1]))]), np.array([i+1 for i in range(int(sizeIm[0]))]))
-    canvas = np.zeros((sizeIm[0],sizeIm[1], 3))
-    canvas.fill(-1) ## Initially mark the canvas with a value out of range.
-    # Negative values will be used to denote pixels which are unpainted.
+    for part in range(1,7):
+        # Set up x, y coordinate images, and canvas.
+        [x, y] = np.meshgrid(np.array([i+1 for i in range(int(sizeIm[1]))]), np.array([i+1 for i in range(int(sizeIm[0]))]))
+        canvas = np.zeros((sizeIm[0],sizeIm[1], 3))
+        canvas.fill(-1) ## Initially mark the canvas with a value out of range.
+        # Negative values will be used to denote pixels which are unpainted.
     
-    # Random number seed
-    np.random.seed(29645)
+        # Random number seed
+        np.random.seed(29645)
     
-    # Set the default vector from center to one end of the stroke.
-    default_theta = 2 * pi * np.random.rand(1,1)[0][0]
-    
-    time.time()
-    time.clock()
-    
-    idx = 0;
-    negative_pixels = np.where(canvas == -1)
-    # While there is at least one negative pixel, loop
-    while len(negative_pixels[0]):
-        # Finding a random negative pixel
-        cntr = np.floor(np.random.rand(1,1)[0][0]*len(negative_pixels[0]))
-        cntr = np.array([negative_pixels[1][cntr], negative_pixels[0][cntr]])
-        cntr = np.amin(np.vstack((cntr, np.array([sizeIm[1], sizeIm[0]]))), axis=0)
-        cntr = np.array([cntr[0]+1, cntr[1]+1])
- 
-        # Grab colour from image at center position of the stroke.
-        colour = np.reshape(imRGB[cntr[1]-1, cntr[0]-1, :],(3,1))
-        #colour = random_colour(colour)
-        # Add the stroke to the canvas
-        nx, ny = (sizeIm[1], sizeIm[0])
-        
-        # Check if center is on an edgel or at the edge; if so, length = 0
-        csize = canny_im.shape
-        if csize[0] <= cntr[1]-1 or csize[1] <= cntr[0]-1 or \
-        canny_im[cntr[1]-1, cntr[0]-1]:
-            length1, length2 = (0, 0)
-        else:
-            length1, length2 = (halfLen, halfLen)      
-        
-        # Orientation of paint brush strokes; if theta = 0, set to default
-        if theta_im[cntr[1]-1, cntr[0]-1] > 0:
-            theta = theta_im[cntr[1]-1, cntr[0]-1]+(pi/2)
-        else:
-            theta = default_theta
-        #theta = random_theta(theta)
-        
+        # Set the default vector from center to one end of the stroke.
+        default_theta = 2 * pi * np.random.rand(1,1)[0][0]
         # Set vector from center to one end of the stroke.
-        delta = np.array([cos(theta), sin(theta)])
-        
-        # Get the endpoints
-        p0, p1 = getEndpoints(cntr, delta, length1, length2, canny_im)
-        canvas = paintStroke(canvas, x, y, p0, p1, colour, rad)
-        print 'stroke', idx
-        
-        negative_pixels = np.where(canvas == -1)
-        idx += 1
-        
-    print "done!"
-    time.time()
+        delta = np.array([cos(default_theta), sin(default_theta)])
+       
+        time.time()
+        time.clock()
     
-    canvas[canvas < 0] = 0.0
+        idx = 0;
+        # finding a negative pixel
+        negative_pixels = np.where(canvas == -1)
+    
+        while len(negative_pixels[0]):
+            # PART 1: Blind Sampling
+            if part == 1:
+                # Randomly select stroke center
+                cntr = np.floor(np.random.rand(2,1).flatten() * np.array([sizeIm[1], sizeIm[0]])) + 1
+                cntr = np.amin(np.vstack((cntr, np.array([sizeIm[1], sizeIm[0]]))), axis=0)
+            # REST OF THE PARTS: Systematic Samping
+            else:
+                # Randomly select stroke center
+                cntr = np.floor(np.random.rand(1,1)[0][0]*len(negative_pixels[0]))
+                cntr = np.array([negative_pixels[1][cntr], negative_pixels[0][cntr]])
+                cntr = np.amin(np.vstack((cntr, np.array([sizeIm[1], sizeIm[0]]))), axis=0)
+                cntr = np.array([cntr[0]+1, cntr[1]+1])
+                
+            # Grab colour from image at center position of the stroke.
+            colour = np.reshape(imRGB[cntr[1]-1, cntr[0]-1, :],(3,1))
+            # PART 6: Random Perturbations
+            if part == 6:
+                colour = random_colour(colour)
+            
+            # Add the stroke to the canvas
+            nx, ny = (sizeIm[1], sizeIm[0])
+            
+            length1, length2 = (halfLen, halfLen)  
+            theta = default_theta
+            # PART 4: Clip paint strokes at canny edges
+            if part >= 4:
+                # Change the halfLen for later parts...
+                if part >= 5:
+                    halfLen = 5
+                
+                # Check if center is on an edgel or at the edge; if so, length = 0
+                csize = canny_im.shape
+                if csize[0] <= cntr[1]-1 or csize[1] <= cntr[0]-1 or \
+                canny_im[cntr[1]-1, cntr[0]-1]:
+                    length1, length2 = (0, 0)
+                else:
+                    length1, length2 = (halfLen, halfLen)   
+                
+                # PART 5: Orient the paint strokes
+                if part >= 5:
+                    # Orientation of paint brush strokes; if theta = 0, set to default
+                    if theta_im[cntr[1]-1, cntr[0]-1] > 0:
+                        theta = theta_im[cntr[1]-1, cntr[0]-1]+(pi/2)
+                    # PART 6: Random Perturbations
+                    if part == 6:
+                        theta = random_theta(theta)
+                    # Set vector from center to one end of the stroke.
+                    delta = np.array([cos(theta), sin(theta)])
+                
+                p0, p1 = getEndpoints(cntr, delta, length1, length2, canny_im)
+            else:
+                p0, p1 = cntr - delta * length2, cntr + delta * length1
+            
+                  
+            canvas = paintStroke(canvas, x, y, p0, p1, colour, rad)
+            print 'stroke', idx
+        
+            negative_pixels = np.where(canvas == -1)
+            idx += 1
+        
+        print "done part", part
+        canvas[canvas < 0] = 0.0
+        
+        # If third part, save the the canny im instead of the canvas
+        if part == 3:
+            canvas = canny_im
+
+        figure(part); plt.imshow(canvas)
+        plt.pause(1)
+        colorImSave('output_'+str(part)+'.png', canvas)
+    
     plt.clf()
     plt.axis('off')
-    plt.imshow(canvas)
-    plt.pause(3)
-    colorImSave('output.png', canvas)
+    print "done!"
+    time.time()
