@@ -16,15 +16,22 @@ import shutil
 import re
 import urllib
 
+# Force a new download/cropping of the images
 download = False
+
 act = ['Aaron Eckhart',  'Adam Sandler',   'Adrien Brody',  'Andrea Anders',    'Ashley Benson',    'Christina Applegate',    'Dianna Agron',  'Gillian Anderson']
+
+# Gender lists with lower-case last-names of the values in act
 fem = ['anders',    'benson',    'applegate',    'agron',  'anderson']
 male = ['eckhart',  'sandler',   'brody']
+
+# Globals which may be changed for more testing
 nTrain = 100
 nValid = 10
 nTest = 10
 k_set = [2, 5, 10, 20, 50, 80, 100, 150, 200]
 
+# Taken from "get_data.py"; helper function of "get_data" function
 def timeout(func, args=(), kwargs={}, timeout_duration=1, default=None):
     '''From:
     http://code.activestate.com/recipes/473878-timeout-function-using-threading/'''
@@ -51,6 +58,7 @@ def timeout(func, args=(), kwargs={}, timeout_duration=1, default=None):
 testfile = urllib.URLopener()            
 
 
+# Taken from "get_data.py"; Gets the data and crops it
 def get_data():
     for a in act:
         name = a.split()[1].lower()
