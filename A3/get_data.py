@@ -11,6 +11,7 @@ import matplotlib.image as mpimg
 import os
 from scipy.ndimage import filters
 import urllib
+import Image
 
 
 
@@ -52,6 +53,13 @@ testfile = urllib.URLopener()
 for a in act:
     name = a.split()[1].lower()
     i = 0
+    
+    # Create a directory for uncropped and cropped images if necessary
+    if not os.path.exists("./cropped"):
+        os.makedirs("./cropped")
+    if not os.path.exists("./uncropped"):
+        os.makedirs("./uncropped")
+    
     for line in open("faces_subset.txt"):
         if a in line:
             filename = name+str(i)+'.'+line.split()[4].split('.')[-1]
@@ -60,10 +68,29 @@ for a in act:
             #testfile.retrieve(line.split()[4], "uncropped/"+filename)
             #timeout is used to stop downloading images which take too long to download
             timeout(testfile.retrieve, (line.split()[4], "uncropped/"+filename), {}, 30)
+                
             if not os.path.isfile("uncropped/"+filename):
                 continue
 
-            
+            # Modify the image and place into "cropped" directory 
+            try:
+                im = imread("uncropped/"+filename)
+                x1, y1, x2, y2 = line.split()[5].split(',')
+                
+                # Crop the image, grayscale it, then resize it
+                im = im[int(y1):int(y2), int(x1):int(x2)] 
+                # Image may already be monochrome
+                if (len(im.shape) > 2):
+                    im = 0.30*im[:,:,0] + 0.59*im[:,:,1] + 0.11*im[:,:,2]
+                im = imresize(im, (32,32))
+    
+                # Save the image
+                im = Image.fromarray(im)
+                im.save("cropped/"+filename)
+            except:
+                e = sys.exc_info()[0]
+                print "Error with "+filename+": "+str(e)
+
             print filename
             i += 1
     
