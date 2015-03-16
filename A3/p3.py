@@ -1,4 +1,8 @@
 
+# Force matplotlib to not use any Xwindows backend.
+import matplotlib
+matplotlib.use('Agg')
+
 from PIL import Image
 from pylab import *
 import numpy as np
@@ -310,16 +314,17 @@ def run_test(faces, files, V, k_set, avg, gender):
 # Compiles the eigenfaces into a single image for the report (taken from pca_example.py)
 def display_save_25_comps(V, x, im_shape):
     '''Display 25 components in V'''
-    figure()
+    #figure()
     for i in range(x):
         plt.subplot(5, 5, i+1)
         plt.axis('off')
-        gray()
+        #gray()
         imshow(V[i,:].reshape(im_shape))
     savefig('./eigenfaces/display_save_25_comps.jpg')  
     
 
 if __name__ == "__main__":
+
     # Get the data if doesn't exist, or requested by global "download"
     if (not os.path.exists("./cropped")) or \
     (not os.path.exists("./uncropped")) or download:
