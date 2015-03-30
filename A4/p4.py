@@ -12,6 +12,7 @@ import scipy.misc
 from scipy.signal import convolve2d as conv
 
 def main(argv): 
+    gray()
     back1 = []; back2 = []; new_back = []; im1 = []; im2 = []
 
     # Make sure that the argument is correct
